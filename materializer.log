@@ -1,0 +1,58 @@
+Option Explicit
+
+Const ForReading = 1
+Const ForWriting = 2
+Const TristateTrue = -1
+
+Dim fso, args, manifestPath, outputPath, manifest, entry
+Dim sourcePath, sourceFile, combined, basePath
+
+Set fso = CreateObject("Scripting.FileSystemObject")
+Set args = WScript.Arguments
+
+If args.Count <> 2 Then
+	WScript.Echo "Usage: cscript materializer.vbs <manifest.txt> <output.vbs>"
+	WScript.Quit 1
+End If
+
+manifestPath = fso.GetAbsolutePathName(args(0))
+outputPath = fso.GetAbsolutePathName(args(1))
+If Not fso.FileExists(manifestPath) Then
+	WScript.Echo "Manifest not found: " & manifestPath
+	WScript.Quit 1
+End If
+
+' Manifest entries are ordered VBScript file paths; # starts a comment.
+' Relative paths are resolved from the manifest's directory.
+basePath = fso.GetParentFolderName(manifestPath)
+combined = ""
+Set manifest = fso.OpenTextFile(manifestPath, ForReading, False, TristateTrue)
+Do Until manifest.AtEndOfStream
+	entry = Trim(manifest.ReadLine)
+	If Len(entry) > 0 And Left(entry, 1) <> "#" Then
+		If Left(entry, 2) = "\\" Or Mid(entry, 2, 1) = ":" Then
+			sourcePath = fso.GetAbsolutePathName(entry)
+		Else
+			sourcePath = fso.GetAbsolutePathName(fso.BuildPath(basePath, entry))
+		End If
+
+		If Not fso.FileExists(sourcePath) Then
+			manifest.Close
+			WScript.Echo "Source not found: " & sourcePath
+			WScript.Quit 1
+		End If
+
+		Set sourceFile = fso.OpenTextFile(sourcePath, ForReading, False, TristateTrue)
+		combined = combined & sourceFile.ReadAll
+		sourceFile.Close
+		If Len(combined) > 0 Then
+			If Right(combined, 2) <> vbCrLf Then combined = combined & vbCrLf
+		End If
+	End If
+Loop
+manifest.Close
+
+Set sourceFile = fso.OpenTextFile(outputPath, ForWriting, True, TristateTrue)
+sourceFile.Write combined
+sourceFile.Close
+WScript.Echo "Materialized " & outputPath

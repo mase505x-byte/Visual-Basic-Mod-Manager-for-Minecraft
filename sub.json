@@ -1,0 +1,10 @@
+{
+	"file": "engine.vb",
+    "$schema": "http://json.schemastore.org/global",
+
+        "jdk": "25",
+        "msbuild-sdks": {"26.3"["funcs26-bool1:4"]} {
+            "of:jdk": "JARFILE"
+        }
+
+    }
